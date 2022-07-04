@@ -37,38 +37,42 @@ void mousedecode(int s1, int s2, struct encoder *e, int *err, int skip) {
   e->prev = s;
 }
 
+#define NREADS 16
+#define PADDETECT (255 * NREADS)
+#define PADMIN (580 * NREADS)
+#define PADMAX (1023 * NREADS)
 
-#define PADMIN (580 * 16)
-#define PADMAX (1023 * 16)
-int padXVal, padYVal;
-struct abuf { int pin; int val[16], pos, tot; } bPOTX = { POTX_PIN }, bPOTY = { POTY_PIN };
+struct abuf { int pin; int val[NREADS], pos, tot; } bPOTX = { POTX_PIN }, bPOTY = { POTY_PIN };
 int bufAnalogRead(struct abuf *a) {
   int cur = analogRead(a->pin);
   a->tot += cur - a->val[a->pos];
   a->val[a->pos] = cur;
-  a->pos = (a->pos + 1) % 16;
+  a->pos = (a->pos + 1) % NREADS;
   return a->tot;
 }
+
+int padXVal, padYVal;
+int lc = 0;
+int paddlesConnected = 0;
+int potState1 = 0;
+int potState2 = 0;
+int buttonState5 = 1;
+int buttonState9 = 1;
+
 void loop() {
-  static int lc = 0;
-  static int paddlesConnected = 0;
   lc++;
   int buttonState1 = digitalRead(JOY1_PIN);
   int buttonState2 = digitalRead(JOY2_PIN);
   int buttonState3 = digitalRead(JOY3_PIN);
   int buttonState4 = digitalRead(JOY4_PIN);
   int buttonState6 = digitalRead(JOY6_PIN);
-  static int potState1 = 0;
-  static int potState2 = 0;
-  static int buttonState5 = 1;
-  static int buttonState9 = 1;
   if ((lc & 63) == 32) {
     potState1 = bufAnalogRead(&bPOTX);
     analogRead(POTY_PIN);
   } else if ((lc & 63) == 32 + 16) {
     potState2 = bufAnalogRead(&bPOTY);
     analogRead(POTX_PIN);
-    paddlesConnected = potState1 > 255*16 && potState2 > 255*16;
+    paddlesConnected = potState1 > PADDETECT && potState2 > PADDETECT;
     if (paddlesConnected) {
       padXVal = (potState1 < PADMIN ? 0 : potState1 - PADMIN) * 0xFFFFL / (PADMAX - PADMIN) - 0x8000L;
       padYVal = (potState2 < PADMIN ? 0 : potState2 - PADMIN) * 0xFFFFL / (PADMAX - PADMIN) - 0x8000L;
