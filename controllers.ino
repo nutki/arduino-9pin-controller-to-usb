@@ -10,87 +10,44 @@
 #define POTYREF_PIN 14 // Output pin for paddle pot reference +5/0v
 
 static const uint8_t hidDescriptorJoystick[] PROGMEM = {
-// USAGE_PAGE (Generic Desktop)
-0x05, 0x01,
-// USAGE (Gamepad)
-0x09, 0x05,
-// COLLECTION (Application)
-    0xa1, 0x01,
-    // REPORT_ID (2)
-    0x85, 0x02,
-
-    // USAGE_PAGE (Button)
-    0x05, 0x09,
-    // USAGE_MINIMUM (Button 1)
-    0x19, 0x01,
-    // USAGE_MAXIMUM (Button 3)
-    0x29, 0x03,
-    // LOGICAL_MINIMUM (0)
-    0x15, 0x00,
-    // LOGICAL_MAXIMUM (1)
-    0x25, 0x01,
-    // REPORT_SIZE (1)
-    0x75, 0x01,
-    // REPORT_COUNT (3)
-    0x95, 0x03,
-    // UNIT_EXPONENT (0)
-    0x55, 0x00,
-    // UNIT (None)
-    0x65, 0x00,
-    // INPUT (Data,Var,Abs)
-    0x81, 0x02,
-
-    // REPORT_SIZE (1)
-    0x75, 0x01,
-    // REPORT_COUNT (1)
-    0x95, 0x01,
-    // INPUT (Const,Var,Abs)
-    0x81, 0x03,
-
-    // USAGE_PAGE (Generic Desktop)
-    0x05, 0x01,
-    // USAGE (Hat Switch)
-    0x09, 0x39,
-    // LOGICAL_MINIMUM (0)
-    0x15, 0x00,
-    // LOGICAL_MAXIMUM (7)
-    0x25, 0x07,
-    // PHYSICAL_MINIMUM (0)
-    0x35, 0x00,
-    // PHYSICAL_MAXIMUM (315)
-    0x46, 0x3B, 0x01,
-    // UNIT (Eng Rot:Angular Pos)
-    0x65, 0x14,
-    // REPORT_SIZE (4)
-    0x75, 0x04,
-    // REPORT_COUNT (1)
-    0x95, 0x01,			
-    // INPUT (Data,Var,Abs)
-    0x81, 0x02,
-            
-    // USAGE (Pointer)
-    0x09, 0x01,
-    // LOGICAL_MINIMUM (-32767)
-    0x16, 0x01, 0x80,
-    // LOGICAL_MAXIMUM (32767)
-    0x26, 0xFF, 0x7F,
-    // REPORT_SIZE (16)
-    0x75, 0x10,
-    // REPORT_COUNT (2)
-    0x95, 0x02,			
-    // COLLECTION (Physical)
-    0xA1, 0x00,
-        // USAGE (X)
-        0x09, 0x30,
-        // USAGE (Rx)
-        0x09, 0x33,	
-        // INPUT (Data,Var,Abs)
-        0x81, 0x02,
-    // END_COLLECTION (Physical)
-    0xc0,
-// END_COLLECTION
-0xc0,
-
+  0x05, 0x01, // USAGE_PAGE (Generic Desktop)
+  0x09, 0x05, // USAGE (Gamepad)
+    0xa1, 0x01, // COLLECTION (Application)
+    0x85, 0x02, // REPORT_ID (2)
+    0x05, 0x09, // USAGE_PAGE (Button)
+    0x19, 0x01, // USAGE_MINIMUM (Button 1)
+    0x29, 0x03, // USAGE_MAXIMUM (Button 3)
+    0x15, 0x00, // LOGICAL_MINIMUM (0)
+    0x25, 0x01, // LOGICAL_MAXIMUM (1)
+    0x75, 0x01, // REPORT_SIZE (1)
+    0x95, 0x03, // REPORT_COUNT (3)
+    0x55, 0x00, // UNIT_EXPONENT (0)
+    0x65, 0x00, // UNIT (None)
+    0x81, 0x02, // INPUT (Data,Var,Abs)
+    0x75, 0x01, // REPORT_SIZE (1)
+    0x95, 0x01, // REPORT_COUNT (1)
+    0x81, 0x03, // INPUT (Const,Var,Abs)
+    0x05, 0x01, // USAGE_PAGE (Generic Desktop)
+    0x09, 0x39, // USAGE (Hat Switch)
+    0x15, 0x00, // LOGICAL_MINIMUM (0)
+    0x25, 0x07, // LOGICAL_MAXIMUM (7)
+    0x35, 0x00, // PHYSICAL_MINIMUM (0)
+    0x46, 0x3B, 0x01, // PHYSICAL_MAXIMUM (315)
+    0x65, 0x14, // UNIT (Eng Rot:Angular Pos)
+    0x75, 0x04, // REPORT_SIZE (4)
+    0x95, 0x01,	// REPORT_COUNT (1)
+    0x81, 0x02, // INPUT (Data,Var,Abs)
+    0x09, 0x01, // USAGE (Pointer)
+    0x16, 0x01, 0x80, // LOGICAL_MINIMUM (-32767)
+    0x26, 0xFF, 0x7F, // LOGICAL_MAXIMUM (32767)
+    0x75, 0x10, // REPORT_SIZE (16)
+    0x95, 0x02, // REPORT_COUNT (2)
+    0xA1, 0x00, // COLLECTION (Physical)
+      0x09, 0x30, // USAGE (X)
+      0x09, 0x33,	// USAGE (Rx)
+      0x81, 0x02, // INPUT (Data,Var,Abs)
+    0xc0, // END_COLLECTION (Physical)
+  0xc0, // END_COLLECTION
 };
 static const uint8_t hidDescriptorMouse[] PROGMEM = {  
     0x05, 0x01,                    // USAGE_PAGE (Generic Desktop)
@@ -167,8 +124,9 @@ void setup() {
   pinMode(JOY6_PIN, INPUT_PULLUP);
   pinMode(POTXREF_PIN, OUTPUT);
   pinMode(POTYREF_PIN, OUTPUT);
+  analogRead(POTX_PIN);
   digitalWrite(POTXREF_PIN, 0);
-  digitalWrite(POTYREF_PIN, 0);
+  digitalWrite(POTYREF_PIN, 1);
   hid_init();
 }
 
@@ -220,10 +178,17 @@ void loop() {
   int buttonState6 = digitalRead(JOY6_PIN);
   if ((lc & 63) == 32) {
     potState1 = bufAnalogRead(&bPOTX);
+    buttonState5 = digitalRead(POTY_PIN);
     analogRead(POTY_PIN);
-  } else if ((lc & 63) == 32 + 16) {
+    digitalWrite(POTYREF_PIN, 0);
+    digitalWrite(POTXREF_PIN, 1);
+  } else if ((lc & 63) == 0) {
+    buttonState9 = digitalRead(POTX_PIN);
     potState2 = bufAnalogRead(&bPOTY);
     analogRead(POTX_PIN);
+    digitalWrite(POTXREF_PIN, 0);
+    digitalWrite(POTYREF_PIN, 1);
+
     paddlesConnected = potState1 > PADDETECT && potState2 > PADDETECT;
     if (paddlesConnected) {
       padXVal = (potState1 < PADMIN ? 0 : potState1 - PADMIN) * 0xFFFEL / (PADMAX - PADMIN) - 0x7FFFL;
@@ -231,13 +196,6 @@ void loop() {
     } else {
       padXVal = padYVal = 0;
     }
-    digitalWrite(POTXREF_PIN, 1);
-    digitalWrite(POTYREF_PIN, 1);
-  } else if ((lc & 63) == 0) {
-    buttonState9 = digitalRead(POTX_PIN);
-    buttonState5 = digitalRead(POTY_PIN);
-    digitalWrite(POTXREF_PIN, 0);
-    digitalWrite(POTYREF_PIN, 0);
   }
   static int skip = 1;
 
