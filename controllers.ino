@@ -174,6 +174,7 @@ int potState1 = 0;
 int potState2 = 0;
 int buttonState5 = 1;
 int buttonState9 = 1;
+int mouseMaybeConnected = 0;
 
 void loop() {
   lc++;
@@ -203,6 +204,7 @@ void loop() {
       padXVal = padYVal = 0;
     }
   }
+  if (!buttonState1 && !buttonState2 || !buttonState3 && !buttonState4) mouseMaybeConnected = 1;
   mousedecode(buttonState1, buttonState3, &ey);
   mousedecode(buttonState2, buttonState4, &ex);
   static long ts0;
@@ -213,11 +215,11 @@ void loop() {
   if (paddlesConnected) {
     int buttons = 3 ^ (buttonState3 + 2 * buttonState4);
     joy_report(buttons, 15, padXVal, padYVal);
-    mouse_report(0, 0, 0);
+    if (mouseMaybeConnected) mouse_report(0, 0, 0);
   } else {
     int buttons = 7 ^ (buttonState6 + 2 * buttonState9 + 4 * buttonState5);
     joy_report(buttons, buttonState1 + buttonState2 * 2 + buttonState3 * 4 + buttonState4 * 8, 0, 0);
-    mouse_report(ex.val * 2, ey.val * 2, buttons);
+    if (mouseMaybeConnected) mouse_report(ex.val * 2, ey.val * 2, buttons);
   }
   ex.val = ey.val = 0;
 #ifdef DEBUG
