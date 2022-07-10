@@ -122,6 +122,8 @@ void setup() {
   pinMode(JOY3_PIN, INPUT_PULLUP);
   pinMode(JOY4_PIN, INPUT_PULLUP);
   pinMode(JOY6_PIN, INPUT_PULLUP);
+  pinMode(POTX_PIN, INPUT);
+  pinMode(POTY_PIN, INPUT);
   pinMode(POTXREF_PIN, OUTPUT);
   pinMode(POTYREF_PIN, OUTPUT);
   analogRead(POTX_PIN);
@@ -135,14 +137,18 @@ void setup() {
 #define ZERO  0x8421
 #define TERR  0x1248
 
+int mouse_skip = 0;
+int mouse_err;
 struct encoder { int val, prev; } ex = { 0, 3 }, ey = {0, 3};
-void mousedecode(int s1, int s2, struct encoder *e, int *err, int skip) {
+void mousedecode(int s1, int s2, struct encoder *e) {
   int s = s1 * 2 + s2;
-  if (!skip && e->prev != s) {
+  if (!mouse_skip && e->prev != s) {
     int code = e->prev * 4 + s;
     if ((PLUS >> code) & 1) e->val++;
     if ((MINUS >> code) & 1) e->val--;
-    if ((TERR >> code) & 1) (*err)++;
+#ifdef DEBUG
+    if ((TERR >> code) & 1) mouse_err++;
+#endif
   }
   e->prev = s;
 }
@@ -197,17 +203,12 @@ void loop() {
       padXVal = padYVal = 0;
     }
   }
-  static int skip = 1;
-
-  static int eerr;
-  mousedecode(buttonState1, buttonState3, &ey, &eerr, skip);
-  mousedecode(buttonState2, buttonState4, &ex, &eerr, skip);
-  skip = 0;
+  mousedecode(buttonState1, buttonState3, &ey);
+  mousedecode(buttonState2, buttonState4, &ex);
   static long ts0;
   long ts = millis();
   if (ts - ts0 < 10) return;
   ts0 = ts;
-  skip = 0;
 
   if (paddlesConnected) {
     int buttons = 3 ^ (buttonState3 + 2 * buttonState4);
@@ -224,10 +225,10 @@ void loop() {
   Serial.print(lc - lc1);
   Serial.print(' ');
   lc1 = lc;
-  Serial.print(padXVal);
+  Serial.print(potState1/NREADS);
   Serial.print(' ');
-  Serial.print(padYVal);
+  Serial.print(potState2/NREADS);
   Serial.print(' ');
-  Serial.println(eerr);
+  Serial.println(mouse_err);
 #endif
 }
