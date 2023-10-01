@@ -1,4 +1,5 @@
 #include <HID.h>
+//#define DEBUG
 #define JOY1_PIN 2   // Up
 #define JOY2_PIN 3   // Down
 #define JOY3_PIN 4   // Left, Paddle X button
@@ -153,13 +154,12 @@ void mousedecode(int s1, int s2, struct encoder *e) {
   e->prev = s;
 }
 
-#define NREADS 16
+#define NREADS 32
 #define PADDETECT (255 * NREADS)
-#define PADMIN (580 * NREADS)
+#define PADMIN (590 * NREADS)
 #define PADMAX (1023 * NREADS)
-
-struct abuf { int pin; int val[NREADS], pos, tot; } bPOTX = { POTX_PIN }, bPOTY = { POTY_PIN };
-int bufAnalogRead(struct abuf *a) {
+struct abuf { int pin; uint16_t val[NREADS], pos, tot; } bPOTX = { POTX_PIN }, bPOTY = { POTY_PIN };
+uint16_t bufAnalogRead(struct abuf *a) {
   int cur = analogRead(a->pin);
   a->tot += cur - a->val[a->pos];
   a->val[a->pos] = cur;
@@ -167,14 +167,21 @@ int bufAnalogRead(struct abuf *a) {
   return a->tot;
 }
 
-int padXVal, padYVal;
 int lc = 0;
 int paddlesConnected = 0;
-int potState1 = 0;
-int potState2 = 0;
+uint16_t potState1 = 0;
+uint16_t potState2 = 0;
+#ifdef DEBUG
+uint16_t potState1min = 0xffff;
+uint16_t potState2min = 0xffff;
+uint16_t potState1max = 0;
+uint16_t potState2max = 0;
+#endif
 int buttonState5 = 1;
 int buttonState9 = 1;
 int mouseMaybeConnected = 0;
+
+#define MAP_POT_INPUT(v) (long)(8*1024*(2-NREADS*1023./(v)))
 
 void loop() {
   lc++;
@@ -185,24 +192,24 @@ void loop() {
   int buttonState6 = digitalRead(JOY6_PIN);
   if ((lc & 63) == 32) {
     potState1 = bufAnalogRead(&bPOTX);
+#if DEBUG
+    if (potState1 < potState1min) potState1min = potState1;
+    if (potState1 > potState1max) potState1max = potState1;
+#endif
     buttonState5 = digitalRead(POTY_PIN);
-    analogRead(POTY_PIN);
     digitalWrite(POTYREF_PIN, 0);
     digitalWrite(POTXREF_PIN, 1);
   } else if ((lc & 63) == 0) {
     buttonState9 = digitalRead(POTX_PIN);
     potState2 = bufAnalogRead(&bPOTY);
-    analogRead(POTX_PIN);
+#if DEBUG
+    if (potState2 < potState2min) potState2min = potState2;
+    if (potState2 > potState2max) potState2max = potState2;
+#endif
     digitalWrite(POTXREF_PIN, 0);
     digitalWrite(POTYREF_PIN, 1);
 
     paddlesConnected = potState1 > PADDETECT && potState2 > PADDETECT;
-    if (paddlesConnected) {
-      padXVal = (potState1 < PADMIN ? 0 : potState1 - PADMIN) * 0xFFFEL / (PADMAX - PADMIN) - 0x7FFFL;
-      padYVal = (potState2 < PADMIN ? 0 : potState2 - PADMIN) * 0xFFFEL / (PADMAX - PADMIN) - 0x7FFFL;
-    } else {
-      padXVal = padYVal = 0;
-    }
   }
   if (!buttonState1 && !buttonState2 || !buttonState3 && !buttonState4) mouseMaybeConnected = 1;
   mousedecode(buttonState1, buttonState3, &ey);
@@ -213,6 +220,17 @@ void loop() {
   ts0 = ts;
 
   if (paddlesConnected) {
+#if 0
+    int padXVal = (potState1 < PADMIN ? 0 : potState1 - PADMIN) * 0xFFFEL / (PADMAX - PADMIN) - 0x7FFFL;
+    int padYVal = (potState2 < PADMIN ? 0 : potState2 - PADMIN) * 0xFFFEL / (PADMAX - PADMIN) - 0x7FFFL;
+#else
+    long potmin = MAP_POT_INPUT(PADMIN);
+    long potmax = MAP_POT_INPUT(PADMAX);
+    long mappedX = MAP_POT_INPUT(potState1);
+    long mappedY = MAP_POT_INPUT(potState2);
+    int padXVal = (mappedX < potmin ? 0 : mappedX - potmin) * 0xFFFEL / (potmax - potmin) - 0x7FFFL;
+    int padYVal = (mappedY < potmin ? 0 : mappedY - potmin) * 0xFFFEL / (potmax - potmin) - 0x7FFFL;
+#endif
     int buttons = 3 ^ (buttonState3 + 2 * buttonState4);
     joy_report(buttons, 15, padXVal, padYVal);
     if (mouseMaybeConnected) mouse_report(0, 0, 0);
@@ -223,14 +241,28 @@ void loop() {
   }
   ex.val = ey.val = 0;
 #ifdef DEBUG
+  static long ts1;
+  ts = millis();
+  if (ts - ts1 < 1000) return;
+  ts1 = ts;
   static int lc1 = 0;
   Serial.print(lc - lc1);
   Serial.print(' ');
   lc1 = lc;
-  Serial.print(potState1/NREADS);
+  Serial.print(potState1min);
+  Serial.print('-');
+  Serial.print(potState1max);
   Serial.print(' ');
-  Serial.print(potState2/NREADS);
+  Serial.print((potState1max - potState1min) / NREADS);
+  Serial.print(' ');
+  Serial.print(potState2min);
+  Serial.print('-');
+  Serial.print(potState2max);
+  Serial.print(' ');
+  Serial.print((potState2max - potState2min) / NREADS);
   Serial.print(' ');
   Serial.println(mouse_err);
+  potState1min = potState2min = 0xffff;
+  potState1max = potState2max = 0;
 #endif
 }
